@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Digital Photobook</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --cream: #f5f0e8; --warm: #e8dcc8; --brown: #5c3d2e; --gold: #c9a84c; }
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 60%, #3a2510 0%, #150a03 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Lato', sans-serif; overflow: hidden; user-select: none;
+  padding: 24px;
+}
+
+/* ── DECORATIVE RULE ── */
+.rule {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 32px;
+}
+.rule-line { flex: 1; max-width: 60px; height: 1px; background: rgba(201,168,76,.35); }
+.rule-icon { color: rgba(201,168,76,.5); font-size: 1rem; letter-spacing: .2em; }
+
+/* ── HERO ── */
+.eyebrow {
+  font-family: 'Lato', sans-serif; font-weight: 300;
+  font-size: .68rem; letter-spacing: .35em; text-transform: uppercase;
+  color: rgba(201,168,76,.55); margin-bottom: 18px; text-align: center;
+}
+h1 {
+  font-family: 'Playfair Display', serif; font-weight: 700;
+  font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.18;
+  color: var(--cream); text-align: center;
+  max-width: 680px;
+}
+h1 em {
+  font-style: italic; color: var(--gold);
+}
+.subtitle {
+  margin-top: 22px; max-width: 480px; text-align: center;
+  font-size: clamp(.82rem, 2vw, .97rem); line-height: 1.7;
+  color: rgba(232,220,200,.55); font-weight: 300; letter-spacing: .03em;
+}
+
+/* ── CTA ── */
+.cta-wrap { margin-top: 44px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+.btn-primary {
+  display: inline-block;
+  background: linear-gradient(135deg, rgba(201,168,76,.22), rgba(201,168,76,.12));
+  border: 1px solid rgba(201,168,76,.55);
+  color: var(--gold);
+  padding: 14px 40px;
+  border-radius: 40px;
+  font-family: 'Lato', sans-serif; font-weight: 700;
+  font-size: .82rem; letter-spacing: .18em; text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .22s, transform .15s, box-shadow .22s;
+  box-shadow: 0 0 0 rgba(201,168,76,0);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, rgba(201,168,76,.38), rgba(201,168,76,.22));
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 32px rgba(201,168,76,.18);
+}
+.btn-primary:active { transform: translateY(0) scale(.99); }
+
+.hint {
+  color: rgba(201,168,76,.25); font-size: .6rem;
+  letter-spacing: .12em; text-transform: uppercase;
+}
+
+/* ── FEATURES ── */
+.features {
+  display: flex; gap: 32px; margin-top: 60px; flex-wrap: wrap; justify-content: center;
+}
+.feature {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  max-width: 140px; text-align: center;
+}
+.feature-icon { font-size: 1.5rem; opacity: .65; }
+.feature-label {
+  font-size: .6rem; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(232,220,200,.38); line-height: 1.5;
+}
+
+/* ── FOOTER ── */
+.footer {
+  position: fixed; bottom: 20px;
+  font-size: .58rem; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(201,168,76,.2);
+}
+</style>
+</head>
+<body>
+
+<div class="eyebrow">✦ &nbsp; Your memories, beautifully kept &nbsp; ✦</div>
+
+<h1>Create Your<br><em>Digital Photobook</em></h1>
+
+<p class="subtitle">
+  Create a digital photobook right in your browser.<br>
+  Made for your memories, easy to share with friends.
+</p>
+
+<div class="cta-wrap">
+  <a class="btn-primary" href="editor.html">Start Creating</a>
+</div>
+
+<div class="features">
+  <div class="feature">
+    <span class="feature-icon">📷</span>
+    <span class="feature-label">Drag &amp; drop<br>photos</span>
+  </div>
+  <div class="feature">
+    <span class="feature-icon">✨</span>
+    <span class="feature-label">Multiple<br>layouts</span>
+  </div>
+  <div class="feature">
+    <span class="feature-icon">💾</span>
+    <span class="feature-label">Auto-saves<br>locally</span>
+  </div>
+</div>
+
+<div class="footer">No backend &nbsp;·&nbsp; No account &nbsp;·&nbsp; 100% private</div>
+
+</body>
+</html>

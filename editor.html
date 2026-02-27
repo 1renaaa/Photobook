@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Digital Photobook</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root { --cream:#f5f0e8; --warm:#e8dcc8; --brown:#5c3d2e; --gold:#c9a84c;
+        --fd:.7s; --fe:cubic-bezier(.42,0,.2,1); }
+
+body {
+  min-height:100vh;
+  background:radial-gradient(ellipse at 50% 60%,#3a2510 0%,#150a03 100%);
+  display:grid; place-items:center;
+  font-family:'Lato',sans-serif; overflow:hidden; user-select:none;
+}
+h1 {
+  position:fixed; left:50%; transform:translateX(-50%);
+  white-space:nowrap;
+  font-family:'Playfair Display',serif; color:var(--gold);
+  font-size:1.1rem; letter-spacing:0.2em;
+  text-transform:uppercase; opacity:0.8;
+  z-index:10;
+}
+
+/* ── BOOK ── */
+.book-wrap { position:relative; width:min(1000px,78vw); height:min(630px,49vw); }
+.book-wrap::after {
+  content:''; position:absolute; bottom:-16px; left:8%; right:8%; height:28px;
+  background:radial-gradient(ellipse,rgba(0,0,0,.55) 0%,transparent 70%);
+  pointer-events:none;
+}
+.book { position:relative; width:100%; height:100%; perspective:3000px; }
+
+.spread {
+  position:absolute; inset:0; display:flex;
+  border-radius:10px; overflow:hidden;
+  box-shadow:-4px 4px 30px rgba(0,0,0,.5),4px 4px 30px rgba(0,0,0,.4);
+}
+.page {
+  flex:1; position:relative; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:22px 16px 16px;
+}
+.page.left-page  { background:linear-gradient(to right,#ddd4be,var(--cream)); border-right:1px solid rgba(100,70,30,.12); }
+.page.right-page { background:linear-gradient(to left,#ddd4be,var(--cream)); }
+.page.left-page::after  { content:''; position:absolute; right:0;top:0;bottom:0;width:22px; background:linear-gradient(to left,rgba(0,0,0,.09),transparent); pointer-events:none; }
+.page.right-page::before{ content:''; position:absolute; left:0;top:0;bottom:0;width:22px; background:linear-gradient(to right,rgba(0,0,0,.06),transparent); pointer-events:none; }
+
+.spine-line {
+  position:absolute; top:0;bottom:0; left:50%; transform:translateX(-50%);
+  width:3px; z-index:5; pointer-events:none;
+  background:linear-gradient(to bottom,#c4a97a,#7a5c38,#c4a97a);
+  box-shadow:0 0 6px rgba(0,0,0,.3);
+}
+.pg-num { position:absolute; bottom:7px; font-size:.58rem; color:#b09070; letter-spacing:.1em; }
+.left-page  .pg-num { left:14px; }
+.right-page .pg-num { right:14px; }
+
+/* ── COVER ── */
+.cover-l { background:linear-gradient(160deg,#f0ebe2,#e5dece)!important; align-items:center; justify-content:center; }
+.cover-l::before {
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-image:url('paper_texture2.png');
+  background-size:cover; background-position:center;
+  mix-blend-mode:multiply; opacity:.6;
+}
+.cover-r { background:linear-gradient(135deg,#5a2e10,#2e1508)!important; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:20px 16px; will-change:transform; transform:translateZ(0); backface-visibility:hidden; }
+.cover-r h2 { font-family:'Playfair Display',serif; color:var(--gold); font-size:1.8rem; text-align:center; line-height:1.2; word-break:break-word; }
+.cover-r p  { color:rgba(201,168,76,.55); font-size:.72rem; letter-spacing:.25em; text-transform:uppercase; }
+.cover-divider { width:44px; height:1px; background:var(--gold); opacity:.5; }
+
+/* cover photo slot (centered thumbnail above title) */
+.cover-photo-slot {
+  width:68%; aspect-ratio:1; flex-shrink:0;
+  position:relative; overflow:hidden; border-radius:6px;
+  transform:translateZ(0); will-change:transform;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  transform-style:preserve-3d;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.cover-photo-slot:not(.has-photo) {
+  border:2px dashed rgba(150,110,70,.3);
+  background:rgba(255,255,255,.03);
+}
+.cover-photo-slot:not(.has-photo):hover { background:rgba(180,150,110,.1); border-color:rgba(201,168,76,.5); }
+.cover-photo-slot img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block;
+  transform:translateZ(0); will-change:transform;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  image-rendering:auto; }
+.cover-photo-slot.has-photo {
+  border:1.5px solid rgba(201,168,76,.32);
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.22), 0 3px 12px rgba(0,0,0,.28);
+  transition:border-color .2s, box-shadow .2s;
+}
+.cover-photo-slot.has-photo::after {
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:2; border-radius:inherit;
+  background:linear-gradient(152deg, rgba(255,255,255,.09) 0%, transparent 48%);
+}
+.cover-photo-slot.has-photo:hover {
+  border-color:rgba(201,168,76,.6);
+  box-shadow:inset 0 2px 12px rgba(0,0,0,.26), 0 5px 20px rgba(0,0,0,.38);
+}
+.cover-photo-slot .add-icon  { font-size:1.4rem; color:rgba(150,110,70,.45); pointer-events:none; }
+.cover-photo-slot .add-label { font-size:.55rem; color:rgba(150,110,70,.38); margin-top:4px; letter-spacing:.09em; pointer-events:none; }
+.cover-photo-slot input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; z-index:1; }
+.cover-photo-slot .rm {
+  position:absolute; top:5px; right:5px; z-index:3;
+  background:rgba(40,10,0,.8); color:#fff; border:none; border-radius:50%;
+  width:20px; height:20px; font-size:.65rem; cursor:pointer;
+  display:none; align-items:center; justify-content:center; line-height:1;
+}
+.cover-photo-slot.has-photo:hover .rm { display:flex; }
+.cover-photo-slot.converting::after {
+  content:'Loading…'; position:absolute; inset:0; pointer-events:none;
+  background:rgba(40,10,2,.75); display:flex; align-items:center; justify-content:center;
+  color:var(--gold); font-size:.65rem; letter-spacing:.1em;
+}
+.cover-imprint {
+  position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); text-align:center;
+  font-family:'Playfair Display',serif; font-style:italic;
+  font-size:.82rem; letter-spacing:.22em; text-transform:uppercase;
+  color:rgba(92,61,46,.65);
+  background:transparent; border:none; outline:none; cursor:text; user-select:text;
+  text-decoration:underline; text-decoration-color:transparent; transition:text-decoration-color .2s;
+}
+.cover-imprint:hover  { text-decoration-color:rgba(92,61,46,.22); }
+.cover-imprint:focus  { text-decoration-color:transparent; outline:none; }
+.cover-imprint:empty::before { content:attr(data-placeholder); color:rgba(92,61,46,.2); }
+.cover-imprint:focus:empty::before { display:none; }
+.cover-title {
+  font-family:'Playfair Display',serif; font-size:1.8rem; line-height:1.2;
+  color:var(--gold); background:transparent; border:none; outline:none;
+  text-align:center; width:68%; padding:0; cursor:text;
+  word-break:break-word; white-space:normal;
+  text-decoration:underline; text-decoration-color:transparent;
+  transition:text-decoration-color .2s; user-select:text;
+}
+.cover-title:hover  { text-decoration-color:rgba(201,168,76,.42); }
+.cover-title:focus  { text-decoration-color:transparent; outline:none; }
+.cover-title::after {
+  content:' ✎'; font-size:.55em; vertical-align:.2em;
+  color:rgba(201,168,76,.4); opacity:0; transition:opacity .18s;
+}
+.cover-title:hover::after,
+.cover-title:focus::after { opacity:1; }
+.cover-sub {
+  font-family:'Lato',sans-serif; color:rgba(201,168,76,.55); font-size:.72rem;
+  letter-spacing:.25em; text-transform:uppercase;
+  background:transparent; border:none; outline:none;
+  text-align:center; width:68%; padding:0; cursor:text;
+  text-decoration:underline; text-decoration-color:transparent;
+  transition:text-decoration-color .2s; user-select:text;
+}
+.cover-sub:hover { text-decoration-color:rgba(201,168,76,.38); }
+.cover-sub:focus { text-decoration-color:transparent; outline:none; }
+
+/* cover-field wraps the cover-sub input so ::after pencil works */
+.cover-field { position:relative; width:68%; }
+.cover-field .cover-sub { width:100%; }
+.cover-field::after {
+  content:'✎'; position:absolute; right:0; top:50%; transform:translateY(-50%);
+  font-size:.6rem; color:rgba(201,168,76,.4); opacity:0; transition:opacity .18s; pointer-events:none;
+}
+.cover-field:hover::after,
+.cover-field:focus-within::after { opacity:1; }
+
+/* cover-imprint pencil (brown paper page, same pattern as cover-title) */
+.cover-imprint::after {
+  content:' ✎'; font-size:.55em; vertical-align:.2em;
+  color:rgba(92,61,46,.45); opacity:0; transition:opacity .18s;
+}
+.cover-imprint:hover::after,
+.cover-imprint:focus::after { opacity:1; }
+
+/* ── PHOTO GRID LAYOUTS ── */
+.photo-grid { display:grid; gap:6px; width:100%; flex:1; }
+.photo-grid.single { grid-template-rows:1fr; }
+.photo-grid.two    { grid-template-rows:1fr 1fr; }
+.photo-grid.trio   { grid-template-rows:1fr 1fr; grid-template-columns:1fr 1fr; }
+.photo-grid.trio .photo-slot:first-child { grid-column:1/-1; }
+.photo-grid.quad   { grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; min-height:0; }
+
+.photo-slot {
+  position:relative; overflow:hidden; border-radius:4px;
+  border:2px dashed rgba(150,110,70,.3);
+  background:rgba(180,150,110,.12);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .2s,border-color .2s,box-shadow .2s; min-height:40px;
+}
+.photo-slot:hover { background:rgba(180,150,110,.22); border-color:var(--gold); }
+.photo-slot.has-photo { border:none; }
+.photo-slot.drag-over { box-shadow:0 0 0 3px var(--gold); border-color:var(--gold); background:rgba(201,168,76,.15); }
+.photo-slot.drag-over::after {
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:5;
+  background:rgba(0,0,0,.2);
+  transition:background .12s;
+}
+.photo-slot img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+.photo-slot .add-icon  { font-size:1.3rem; color:rgba(150,110,70,.45); pointer-events:none; }
+.photo-slot .add-label { font-size:.58rem; color:rgba(120,80,40,.45); margin-top:3px; letter-spacing:.07em; pointer-events:none; }
+.photo-slot input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; z-index:1; }
+.photo-slot .rm {
+  position:absolute; top:4px; right:4px; z-index:3;
+  background:rgba(40,10,0,.8); color:#fff; border:none; border-radius:50%;
+  width:19px; height:19px; font-size:.6rem; cursor:pointer;
+  display:none; align-items:center; justify-content:center; line-height:1;
+}
+.photo-slot.has-photo:hover .rm { display:flex; }
+/* drag handle on photos */
+.photo-slot.has-photo { cursor:grab; }
+.photo-slot.has-photo:active { cursor:grabbing; }
+.photo-slot.dragging {
+  opacity:.85; transform:scale(1.04); cursor:grabbing; z-index:10;
+  box-shadow:0 10px 28px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+}
+@keyframes snapSettle { 0%{transform:scale(.97)} 100%{transform:scale(1)} }
+.photo-slot.snap { animation:snapSettle 150ms cubic-bezier(.2,0,.38,1) forwards; }
+
+.photo-slot.converting::after {
+  content:'Loading…'; position:absolute; inset:0;
+  background:rgba(245,240,232,.85); display:flex; align-items:center; justify-content:center;
+  font-size:.68rem; color:var(--brown); letter-spacing:.08em; pointer-events:none;
+}
+
+.caption-wrap { width:100%; margin-top:6px; flex-shrink:0; position:relative; }
+.caption-wrap::after {
+  content:'✎'; position:absolute; right:2px; top:50%; transform:translateY(-50%);
+  font-size:.6rem; color:rgba(150,100,60,.38); opacity:0; transition:opacity .18s; pointer-events:none;
+}
+.caption-wrap:hover::after,
+.caption-wrap:focus-within::after { opacity:1; }
+.caption-wrap input {
+  width:100%; border:none; border-bottom:1px solid rgba(150,110,70,.25);
+  background:transparent; font-family:'Playfair Display',serif; font-style:italic;
+  font-size:.7rem; color:var(--brown); padding:2px; text-align:center; outline:none;
+}
+.caption-wrap input::placeholder { color:rgba(150,100,60,.35); }
+
+/* ── LAYOUT PICKER ── */
+.layout-bar {
+  position:absolute; top:50%;
+  display:flex; flex-direction:column; gap:4px; z-index:6; opacity:0; transition:opacity .2s;
+  pointer-events:none;
+}
+.left-page  .layout-bar { left:4px;  transform:translateY(-50%); }
+.right-page .layout-bar { right:4px; transform:translateY(-50%); }
+.page:hover .layout-bar { opacity:1; pointer-events:all; }
+.layout-btn {
+  background:rgba(40,20,5,.75); border:1px solid rgba(201,168,76,.4);
+  color:var(--gold); border-radius:4px; padding:4px;
+  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  transition:background .15s;
+}
+.layout-btn:hover  { background:rgba(201,168,76,.3); }
+.layout-btn:active { background:rgba(201,168,76,.45); transform:scale(0.92); }
+.layout-btn.active { background:rgba(201,168,76,.25); border-color:var(--gold); }
+
+/* ── PAGE FLIP ── */
+.flipper-container {
+  position:absolute; top:0; bottom:0; width:50%;
+  transform-style:preserve-3d; z-index:10; pointer-events:none;
+}
+.flipper-container.flip-forward  { right:0; transform-origin:left center;  animation:flipF var(--fd) var(--fe) forwards; }
+.flipper-container.flip-backward { left:0;  transform-origin:right center; animation:flipB var(--fd) var(--fe) forwards; }
+@keyframes flipF { from{transform:rotateY(0)} to{transform:rotateY(-180deg)} }
+@keyframes flipB { from{transform:rotateY(0)} to{transform:rotateY(180deg)} }
+.flip-mid-shadow {
+  position:absolute; inset:0; pointer-events:none; z-index:8; opacity:0;
+  background:linear-gradient(to right,transparent 38%,rgba(0,0,0,.09) 50%,transparent 62%);
+}
+
+.flipper-face {
+  position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:22px 16px 16px;
+}
+.flip-forward  .face-front { border-radius:0 10px 10px 0; }
+.flip-forward  .face-back  { border-radius:10px 0 0 10px; transform:rotateY(180deg); }
+.flip-backward .face-front { border-radius:10px 0 0 10px; }
+.flip-backward .face-back  { border-radius:0 10px 10px 0; transform:rotateY(-180deg); }
+.flip-forward  .face-front::after, .flip-backward .face-front::after {
+  content:''; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+  background:linear-gradient(to left,rgba(0,0,0,.15) 0%,rgba(0,0,0,.04) 22%,transparent 55%);
+}
+.flip-forward  .face-back::after,  .flip-backward .face-back::after  {
+  content:''; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+  background:linear-gradient(to right,rgba(0,0,0,.11) 0%,rgba(0,0,0,.03) 22%,transparent 55%);
+}
+
+/* ── CONTROLS ── */
+.controls {
+  position:fixed; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;
+  z-index:20;
+  opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.btn {
+  background:rgba(201,168,76,.12); border:1px solid rgba(201,168,76,.35);
+  color:var(--gold); padding:8px 18px; border-radius:30px;
+  font-family:'Lato',sans-serif; font-size:.72rem;
+  letter-spacing:.12em; text-transform:uppercase;
+  cursor:pointer; transition:background .2s,transform .1s;
+}
+.btn:hover { background:rgba(201,168,76,.25); transform:scale(1.04); }
+.btn:disabled { opacity:.25; cursor:default; transform:none; }
+.btn.add   { color:#85e89a; border-color:rgba(100,210,120,.35); background:rgba(80,180,100,.1); }
+.btn.del   { color:#f08080; border-color:rgba(220,80,80,.35);   background:rgba(180,60,60,.1); }
+.btn.tray  { color:#a0c8f0; border-color:rgba(100,160,220,.35); background:rgba(60,100,180,.1); }
+.btn.reset  { color:#e8a060; border-color:rgba(232,160,96,.35);  background:rgba(200,120,40,.1); }
+.btn.export { color:#90caf9; border-color:rgba(100,160,230,.35); background:rgba(60,110,200,.1); }
+.btn.import { color:#a5d6a7; border-color:rgba(100,200,120,.35); background:rgba(60,160,80,.1); }
+.pg-indicator { color:rgba(201,168,76,.55); font-size:.7rem; letter-spacing:.1em; min-width:80px; text-align:center; }
+.hint { display:none; }
+body.mode-open  .controls { opacity:1; pointer-events:auto; }
+/* Read mode: hide all editor chrome except prev/next controls and tray button */
+body.mode-read  .editor-only       { display:none; }
+body.mode-read  .controls          { display:flex; opacity:1; pointer-events:auto; }
+body.mode-read  .floating-tray-btn { display:flex; }
+
+/* ── PAGE TRAY ── */
+.tray-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.7);
+  display:flex; align-items:flex-end; justify-content:center;
+  z-index:100; opacity:0; pointer-events:none;
+  transition:opacity .25s;
+}
+.tray-overlay.open { opacity:1; pointer-events:all; }
+.tray {
+  background:rgba(30,14,4,.95); border-top:1px solid rgba(201,168,76,.25);
+  border-radius:16px 16px 0 0; padding:16px 16px 24px;
+  width:100%; max-width:860px;
+  transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.tray-overlay.open .tray { transform:translateY(0); }
+.tray-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:14px;
+}
+.tray-header h3 { font-family:'Playfair Display',serif; color:var(--gold); font-size:.95rem; letter-spacing:.1em; }
+.tray-close { background:none; border:none; color:rgba(201,168,76,.6); font-size:1.2rem; cursor:pointer; }
+.tray-scroll { display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; }
+.tray-scroll::-webkit-scrollbar { height:4px; }
+.tray-scroll::-webkit-scrollbar-thumb { background:rgba(201,168,76,.3); border-radius:2px; }
+
+.tray-item {
+  flex-shrink:0; width:90px; cursor:pointer;
+  border-radius:6px; overflow:hidden;
+  border:2px solid transparent;
+  transition:border-color .2s, transform .15s;
+  position:relative;
+}
+.tray-item:hover { transform:translateY(-3px); border-color:rgba(201,168,76,.5); }
+.tray-item.current-tray { border-color:var(--gold); }
+.tray-item.drag-tray-over { border-color:#85e89a; box-shadow:0 0 0 1px #85e89a; }
+.tray-thumb {
+  width:90px; height:60px; background:var(--cream);
+  display:flex; overflow:hidden;
+}
+.tray-half { flex:1; position:relative; overflow:hidden; }
+.tray-half img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.tray-half.dark { background:linear-gradient(135deg,#2e1508,#5a2e10); }
+.tray-half.light-l { background:linear-gradient(to right,#ddd4be,var(--cream)); }
+.tray-half.light-r { background:linear-gradient(to left, #ddd4be,var(--cream)); }
+.tray-label { text-align:center; font-size:.58rem; color:rgba(201,168,76,.6); padding:4px 2px 2px; letter-spacing:.06em; }
+.tray-drag-hint { font-size:.55rem; color:rgba(201,168,76,.35); text-align:center; margin-top:10px; letter-spacing:.08em; }
+body.mode-read .tray-drag-hint { display:none; }
+body.mode-read .tray-item { cursor:default; }
+
+/* drag ghost style */
+.tray-item.dragging-tray { opacity:.4; }
+/* ── FLOATING ALL PAGES BUTTON ── */
+.floating-tray-btn {
+  position:absolute;
+  top:0; right:-76px;
+  width:42px;
+  background:rgba(201,168,76,.12);
+  border:1px solid rgba(201,168,76,.35);
+  border-radius:8px;
+  color:var(--gold);
+  font-size:.62rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  cursor:pointer;
+  padding:8px 4px;
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  transition:background .2s, transform .15s;
+  font-family:'Lato',sans-serif;
+  line-height:1.3;
+  text-align:center;
+}
+.floating-tray-btn:hover  { background:rgba(201,168,76,.25); transform:scale(1.06); }
+.floating-tray-btn:active { transform:scale(0.97); }
+.floating-tray-btn .tray-icon { font-size:1.2rem; }
+
+/* ── ACTION RAIL ── */
+.action-rail {
+  position:absolute; top:50%; right:-76px;
+  transform:translateY(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  z-index:20;
+}
+/* Share button — pinned to bottom-right of book-wrap */
+.share-btn {
+  position:absolute; bottom:0; right:-76px;
+  width:42px; height:42px;
+  background:rgba(201,168,76,.12); border:1px solid rgba(201,168,76,.35);
+  border-radius:8px; color:var(--gold); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background .2s, transform .15s, box-shadow .15s;
+  z-index:20;
+}
+.share-btn:hover  { background:rgba(201,168,76,.25); transform:scale(1.08); box-shadow:0 0 14px rgba(201,168,76,.2); }
+.share-btn:active { transform:scale(0.94); }
+
+/* ── SHARE MODAL ── */
+.share-overlay {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(10,5,2,.72); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.share-overlay.open { opacity:1; pointer-events:auto; }
+.share-modal {
+  background:linear-gradient(160deg,#2a1a0e,#1a0e06);
+  border:1px solid rgba(201,168,76,.25); border-radius:14px;
+  padding:32px 28px 28px; width:min(420px,90vw);
+  display:flex; flex-direction:column; gap:16px;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  transform:translateY(10px); transition:transform .2s;
+}
+.share-overlay.open .share-modal { transform:translateY(0); }
+.share-modal h2 {
+  font-family:'Playfair Display',serif; color:var(--cream);
+  font-size:1.15rem; font-weight:700; margin:0;
+}
+.share-url-row { display:flex; gap:8px; }
+.share-url-row input {
+  flex:1; background:rgba(255,255,255,.05); border:1px solid rgba(201,168,76,.22);
+  border-radius:8px; color:rgba(232,220,200,.8); padding:9px 12px;
+  font-size:.78rem; font-family:'Lato',sans-serif; letter-spacing:.02em;
+  outline:none; cursor:default;
+}
+.share-copy-btn {
+  background:rgba(201,168,76,.18); border:1px solid rgba(201,168,76,.45);
+  border-radius:8px; color:var(--gold); padding:9px 16px;
+  font-family:'Lato',sans-serif; font-size:.72rem; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; cursor:pointer;
+  transition:background .18s, transform .12s; white-space:nowrap;
+}
+.share-copy-btn:not(:disabled):hover  { background:rgba(201,168,76,.32); transform:scale(1.04); }
+.share-copy-btn:not(:disabled):active { transform:scale(.97); }
+.share-copy-btn:disabled { opacity:.38; cursor:default; transform:none; }
+.share-copy-btn.copied {
+  color:#8fbc8f;
+  background:rgba(100,160,100,.12);
+  border-color:rgba(100,160,100,.4);
+}
+.share-helper { font-size:.65rem; color:rgba(201,168,76,.35); letter-spacing:.04em; }
+.share-close {
+  position:absolute; top:14px; right:16px;
+  background:none; border:none; color:rgba(201,168,76,.4);
+  font-size:1rem; cursor:pointer; line-height:1;
+}
+.share-close:hover { color:var(--gold); }
+.share-modal { position:relative; }
+.rail-btn {
+  width:42px; height:42px;
+  background:rgba(201,168,76,.12); border:1px solid rgba(201,168,76,.35);
+  border-radius:8px; color:var(--gold); font-size:1.15rem;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:background .2s, transform .15s, box-shadow .15s;
+}
+.rail-btn:hover:not(:disabled) {
+  background:rgba(201,168,76,.25); transform:scale(1.08);
+  box-shadow:0 0 14px rgba(201,168,76,.2);
+}
+.rail-btn:active:not(:disabled) { transform:scale(0.94); box-shadow:none; }
+.rail-btn:disabled { opacity:.25; cursor:default; }
+#delBtn:hover:not(:disabled) { color:#f08080; border-color:rgba(220,80,80,.5); background:rgba(180,60,60,.15); box-shadow:0 0 14px rgba(200,60,60,.2); }
+.rail-btn { position:relative; }
+.rail-btn::after {
+  content: attr(data-tooltip);
+  position:absolute; left:calc(100% + 8px); top:50%; transform:translateY(-50%);
+  background:rgba(20,8,2,.92); border:1px solid rgba(201,168,76,.3);
+  color:var(--gold); font-size:.58rem; letter-spacing:.1em; text-transform:uppercase;
+  white-space:nowrap; padding:4px 9px; border-radius:4px;
+  pointer-events:none; opacity:0; transition:opacity .12s;
+}
+.rail-btn:hover::after { opacity:1; }
+
+/* ── BOOK MODE TOGGLE ── */
+body.mode-closed .editor-only:not(.controls) { display:none; }
+body.mode-open   #closedView  { display:none; }
+/* Spread is in DOM in closed mode for pre-rendering, but invisible */
+body.mode-closed #book            { opacity:0; pointer-events:none; }
+body.mode-closed .book-wrap::after{ opacity:0; }
+
+/* ── CLOSED BOOK ── */
+/* #closedView lives inside book-wrap (position:relative) as an absolute overlay */
+#closedView {
+  position:absolute; inset:0; z-index:5;
+  display:flex; align-items:center; justify-content:center;
+}
+/* Half-width cover — centered by flex parent, same height as the spread */
+.closed-book {
+  width:min(500px,42vw); height:100%;
+  position:relative;
+  transform-origin:left center;
+  border-radius:0 10px 10px 0;
+  box-shadow:-6px 0 24px rgba(0,0,0,.55), 4px 4px 24px rgba(0,0,0,.4);
+}
+
+/* Opening keyframes — cover rotates out, spread fades in simultaneously */
+@keyframes coverOpen {
+  0%   { transform:perspective(1500px) translateX(0) rotateY(0deg);                        opacity:1; }
+  60%  {                                                                                     opacity:1; }
+  100% { transform:perspective(1500px) translateX(var(--openShiftX,0px)) rotateY(-105deg); opacity:0; }
+}
+@keyframes spreadReveal {
+  0%   { opacity:0; transform:scale(.985); }
+  40%  { opacity:.5; }
+  65%  { opacity:1; transform:scale(1);   }
+  100% { opacity:1; transform:scale(1);   }
+}
+.closed-book.opening {
+  animation:coverOpen 700ms cubic-bezier(.42,0,.2,1) forwards;
+}
+.book-wrap.opening #book {
+  animation:spreadReveal 700ms cubic-bezier(.42,0,.2,1) forwards;
+}
+.closed-spine {
+  position:absolute; left:0; top:0; bottom:0; width:3px; z-index:2;
+  background:linear-gradient(to bottom,#c4a97a,#7a5c38,#c4a97a);
+  box-shadow:0 0 6px rgba(0,0,0,.3);
+}
+.closed-face {
+  position:absolute; inset:0; left:3px;
+  background:linear-gradient(135deg,#5a2e10,#2e1508);
+  border-radius:0 10px 10px 0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; padding:32px 20px;
+}
+.open-btn {
+  margin-top:8px;
+  background:linear-gradient(135deg,rgba(201,168,76,.18),rgba(201,168,76,.08));
+  border:1px solid rgba(201,168,76,.5); color:var(--gold);
+  padding:10px 28px; border-radius:30px;
+  font-family:'Lato',sans-serif; font-size:.72rem; letter-spacing:.18em; text-transform:uppercase;
+  cursor:pointer; transition:background .2s, transform .15s;
+}
+.open-btn:hover  { background:rgba(201,168,76,.3); transform:translateY(-2px) scale(1.03); }
+.open-btn:active { transform:scale(.98); }
+
+</style>
+</head>
+<body class="mode-closed">
+
+<h1 class="editor-only">✦ My Photobook ✦</h1>
+<div class="book-wrap" style="position:relative;">
+  <div id="closedView">
+    <div class="closed-book" id="closedBook">
+      <div class="closed-spine"></div>
+      <div class="closed-face" id="closedFace"></div>
+    </div>
+  </div>
+  <div class="book" id="book"></div>
+  <button class="floating-tray-btn editor-only" onclick="openTray()" title="All Pages">
+    <span class="tray-icon"><svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 13V3C9 2 6 2 2 3v10c4-1 7-1 9 0z"/><path d="M11 13V3c2-1 5-1 9 0v10c-2-1-5-1-9 0z"/></svg></span>
+    <span>All<br>Pages</span>
+  </button>
+  <div class="action-rail editor-only">
+    <button class="rail-btn" onclick="addPages()" data-tooltip="Add page">＋</button>
+    <button class="rail-btn" id="delBtn" onclick="deletePage()" data-tooltip="Delete page" disabled>
+      <svg width="14" height="14" viewBox="0 0 13 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1,4 12,4"/>
+        <path d="M4.5 4V2.5h4V4"/>
+        <path d="M2.5 4l.8 8h6.4l.8-8"/>
+      </svg>
+    </button>
+  </div>
+  <button class="share-btn editor-only" onclick="openShareModal()" title="Share">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"/>
+      <polyline points="16 6 12 2 8 6"/>
+      <line x1="12" y1="2" x2="12" y2="15"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Share Modal -->
+<div class="share-overlay" id="shareOverlay" onclick="closeShareIfBg(event)">
+  <div class="share-modal">
+    <button class="share-close" onclick="closeShareModal()">✕</button>
+    <h2>Share this book</h2>
+    <div class="share-url-row">
+      <input type="text" id="shareUrlInput" readonly>
+      <button class="share-copy-btn" id="shareCopyBtn" onclick="copyShareLink()">Copy Link</button>
+    </div>
+    <div class="share-helper">Anyone with this link can view your book.</div>
+  </div>
+</div>
+
+<div class="controls editor-only">
+  <button class="btn" id="prevBtn" onclick="go(-1)" disabled>◀ Prev</button>
+  <div class="pg-indicator" id="ind">Cover</div>
+  <button class="btn" id="nextBtn" onclick="go(1)">Next ▶</button>
+  <input type="file" id="importInput" accept=".json" style="display:none" onchange="importBook(event)">
+</div>
+<div class="hint editor-only">← → keys • drag photos to swap • drag pages in tray to reorder</div>
+
+<!-- Page Tray -->
+<div class="tray-overlay" id="trayOverlay" onclick="closeTrayIfBg(event)">
+  <div class="tray">
+    <div class="tray-header">
+      <h3>All Pages</h3>
+      <button class="tray-close" onclick="closeTray()">✕</button>
+    </div>
+    <div class="tray-scroll" id="trayScroll"></div>
+    <div class="tray-drag-hint">Drag thumbnails to reorder pages</div>
+  </div>
+</div>
+
+<script>
+/*
+ * Architecture overview
+ * ─────────────────────
+ * All state lives in spreads[] — an array of cover/spread objects. Photos are stored
+ * as base64 data-URLs in memory (lost on page refresh; no persistence layer).
+ *
+ * render() tears down and rebuilds the visible spread from scratch, then bindAll()
+ * attaches fresh listeners to the new DOM nodes.
+ *
+ * Page flip: go() pre-renders the destination spread underneath, overlays a CSS 3D
+ * flipper on top, then removes the flipper on animationend — the destination is already
+ * correct underneath so no second render is needed.
+ *
+ * HEIC images use a three-tier decode fallback:
+ *   1. createImageBitmap  — native (Safari, Chrome w/ OS codec)
+ *   2. <img> tag decode   — some browsers support HEIC via OS codecs
+ *   3. VideoDecoder API   — manual HEVC bitstream extraction + GPU decode
+ */
+
+/* ══════════════════════════════════════════════════════════
+   STATE & DATA MODEL
+   ══════════════════════════════════════════════════════════ */
+
+let bookMode   = 'closed'; // 'closed' | 'open'
+const shareId  = new URLSearchParams(location.search).get('share');
+let isReadMode = false;
+
+/* ── BOOK DATA API ── */
+const BOOK_VERSION = 1;
+
+function getBookData() {
+  const cover = spreads[0];
+  return {
+    version:    BOOK_VERSION,
+    title:      cover.title,
+    subtitle:   cover.sub,
+    coverPhoto: cover.photo,
+    spreads,
+    current,
+  };
+}
+
+function loadBookData(data) {
+  if (!data?.spreads) return false;
+  spreads = data.spreads;
+  current = data.current ?? 0;
+  render();
+  return true;
+}
+
+const openBookSound = new Audio('audio_big-paper-sound.m4a');
+openBookSound.preload = 'auto';
+openBookSound.volume  = 0.45;
+
+let spreads = [
+  { type:'cover', title:'My Photobook', sub:'Paris 2026', photo:null, imprint:'' },
+  { type:'spread', left:{layout:'single',photos:[null],caption:''}, right:{layout:'two',photos:[null,null],caption:''} },
+  { type:'spread', left:{layout:'two',photos:[null,null],caption:''}, right:{layout:'single',photos:[null],caption:''} },
+];
+let current   = 0;
+let animating = false;
+
+const flipSound  = new Audio('audio_page-flip.mp3');
+flipSound.preload = 'auto';
+flipSound.volume  = 0.25;
+
+const clickSound  = new Audio('audio_UI-click.mp3');
+clickSound.preload = 'auto';
+clickSound.volume  = 0.15;
+
+function playFlipSfx()  { flipSound.currentTime  = 0; flipSound.play().catch(() => {}); }
+function playClickSfx() { clickSound.currentTime = 0; clickSound.play().catch(() => {}); }
+
+/* ══════════════════════════════════════════════════════════
+   UTILITIES
+   ══════════════════════════════════════════════════════════ */
+
+// Shorthand element factory. Named `elt` to avoid shadowing `el =>` forEach parameters.
+function elt(tag, cls) {
+  const d = document.createElement(tag);
+  if (cls) d.className = cls;
+  return d;
+}
+
+// Number of photo slots per layout name
+const LAYOUT_PHOTO_COUNT = { single:1, two:2, trio:3, quad:4 };
+
+// Numeric page label for a single slot (only meaningful for si > 0)
+function pageNum(si, side) { return side === 'left' ? si*2-1 : si*2; }
+
+// Human-readable spread label used in the nav indicator and tray thumbnails
+function spreadLabel(i) { return i === 0 ? 'Cover' : `${i*2-1}–${i*2}`; }
+
+// Remove a drag-highlight class from all currently highlighted elements
+function clearDragOver(cls) {
+  document.querySelectorAll('.' + cls).forEach(node => node.classList.remove(cls));
+}
+
+// Copy inline background styles from a built .page element onto a .flipper-face element.
+// Flipper faces don't share the .page class, so CSS backgrounds must be applied inline.
+function applyPageBg(pageEl, faceEl) {
+  if (pageEl.classList.contains('cover-l')) {
+    faceEl.style.cssText += ';background:linear-gradient(160deg,#f0ebe2,#e5dece);align-items:center;justify-content:center';
+  } else if (pageEl.classList.contains('cover-r')) {
+    faceEl.style.cssText += ';background:linear-gradient(135deg,#5a2e10,#2e1508);flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px 16px';
+  } else if (pageEl.classList.contains('left-page')) {
+    faceEl.style.background = 'linear-gradient(to right,#ddd4be,var(--cream))';
+  } else {
+    faceEl.style.background = 'linear-gradient(to left,#ddd4be,var(--cream))';
+  }
+}
+
+// Append a cover-fit thumbnail image to a tray half-cell
+function appendThumbnailImage(container, src) {
+  const im = new Image();
+  im.src = src;
+  im.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover';
+  container.style.position = 'relative';
+  container.appendChild(im);
+}
+
+/* ══════════════════════════════════════════════════════════
+   PERSISTENCE  (IndexedDB primary · localStorage fallback)
+   ══════════════════════════════════════════════════════════ */
+
+const DB_NAME = 'photobookDB', DB_VER = 1, DB_STORE = 'state', LS_KEY = 'photobook_v1';
+let idbAvail = null, saveTimer = null, _db = null;
+
+function openDB() {
+  if (_db) return Promise.resolve(_db);
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE);
+    r.onsuccess = e => { _db = e.target.result; res(_db); };
+    r.onerror   = e => rej(e.target.error);
+  });
+}
+async function idbReady() {
+  if (idbAvail !== null) return idbAvail;
+  try { await openDB(); idbAvail = true; } catch(_) { idbAvail = false; }
+  return idbAvail;
+}
+
+function dataURLtoBlob(url) {
+  const [hdr, b64] = url.split(',');
+  const mime = hdr.match(/:(.*?);/)[1];
+  const bin  = atob(b64);
+  const buf  = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return new Blob([buf], { type: mime });
+}
+function blobToDataURL(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = e => res(e.target.result);
+    r.onerror = () => rej(new Error('blob read'));
+    r.readAsDataURL(blob);
+  });
+}
+
+// data-URLs → Blobs for IDB storage (avoids large base64 in the store)
+function spreadsOut(arr) {
+  return arr.map(s => {
+    if (s.type === 'cover') return { ...s, photo: s.photo ? dataURLtoBlob(s.photo) : null };
+    const p = x => ({ ...x, photos: x.photos.map(ph => ph ? dataURLtoBlob(ph) : null) });
+    return { ...s, left: p(s.left), right: p(s.right) };
+  });
+}
+// Blobs → data-URLs when restoring from IDB
+async function spreadsIn(arr) {
+  const out = [];
+  for (const s of arr) {
+    if (s.type === 'cover') {
+      const photo = s.photo instanceof Blob ? await blobToDataURL(s.photo) : (s.photo || null);
+      out.push({ ...s, photo }); continue;
+    }
+    const p = async x => ({ ...x, photos: await Promise.all(x.photos.map(ph => ph ? blobToDataURL(ph) : null)) });
+    out.push({ ...s, left: await p(s.left), right: await p(s.right) });
+  }
+  return out;
+}
+
+async function persistSave() {
+  if (await idbReady()) {
+    try {
+      const db = await openDB();
+      await new Promise((res, rej) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put({ spreads: spreadsOut(spreads), current }, 'main');
+        tx.oncomplete = res;
+        tx.onerror    = e => rej(e.target.error);
+      });
+      return;
+    } catch(e) { console.warn('IDB save:', e); }
+  }
+  // localStorage fallback — stores data-URLs as JSON
+  try { localStorage.setItem(LS_KEY, JSON.stringify(getBookData())); } catch(_) {}
+}
+
+async function persistLoad() {
+  if (await idbReady()) {
+    try {
+      const db  = await openDB();
+      const rec = await new Promise((res, rej) => {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const r  = tx.objectStore(DB_STORE).get('main');
+        r.onsuccess = e => res(e.target.result);
+        r.onerror   = e => rej(e.target.error);
+      });
+      if (rec) {
+        spreads = await spreadsIn(rec.spreads);
+        current = rec.current ?? 0;
+        render(); return;
+      }
+    } catch(e) { console.warn('IDB load:', e); }
+  }
+  // localStorage fallback (also handles migration from LS → IDB on next save)
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw && loadBookData(JSON.parse(raw))) return;
+  } catch(_) {}
+  render();
+}
+
+async function persistClear() {
+  if (await idbReady()) {
+    try {
+      const db = await openDB();
+      await new Promise((res, rej) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).delete('main');
+        tx.oncomplete = res;
+        tx.onerror    = e => rej(e.target.error);
+      });
+    } catch(_) {}
+  }
+  localStorage.removeItem(LS_KEY);
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persistSave, 400);
+}
+
+function resetBook() {
+  if (!confirm('Reset this book? This will remove all photos and captions saved on this device.')) return;
+  clearTimeout(saveTimer);
+  persistClear();
+  spreads = [
+    { type:'cover', title:'My Photobook', sub:'Paris 2026', photo:null, imprint:'' },
+    { type:'spread', left:{layout:'single',photos:[null],caption:''}, right:{layout:'two',photos:[null,null],caption:''} },
+    { type:'spread', left:{layout:'two',photos:[null,null],caption:''}, right:{layout:'single',photos:[null],caption:''} },
+  ];
+  current = 0;
+  render();
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER
+   ══════════════════════════════════════════════════════════ */
+
+function render() {
+  // Always pre-render the spread (non-interactive in closed mode) so it's
+  // ready behind the closed cover for the opening transition.
+  const book = document.getElementById('book');
+  book.innerHTML = '';
+  const spreadEl = buildSpread(current, bookMode === 'open' && !isReadMode);
+  spreadEl.classList.add('spread');
+  book.appendChild(spreadEl);
+  book.appendChild(elt('div', 'spine-line'));
+
+  if (bookMode === 'closed') { renderClosedBook(); return; }
+  updateUI();
+  bindAll();
+}
+
+function renderClosedBook() {
+  const face = document.getElementById('closedFace');
+  if (!face) return;
+  face.innerHTML = '';
+  const s = spreads[0];
+
+  // Title — reuses cover-title class for identical styling
+  const title = elt('div', 'cover-title');
+  title.contentEditable = 'true'; title.textContent = s.title;
+  title.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); title.blur(); } });
+  title.addEventListener('blur', () => {
+    const v = title.textContent.trim();
+    spreads[0].title = v || 'My Photobook';
+    if (!v) title.textContent = 'My Photobook';
+    scheduleSave();
+  });
+  face.appendChild(title);
+
+  face.appendChild(elt('div', 'cover-divider'));
+
+  // Subtitle — reuses cover-field / cover-sub for identical styling + pen affordance
+  const subField = elt('div', 'cover-field');
+  const subInp   = elt('input', 'cover-sub');
+  subInp.type = 'text'; subInp.value = s.sub;
+  subInp.addEventListener('blur', () => { spreads[0].sub = subInp.value.trim() || 'Paris 2026'; scheduleSave(); });
+  subField.appendChild(subInp);
+  face.appendChild(subField);
+
+  // CTA
+  const btn = elt('button', 'open-btn');
+  btn.textContent = 'Open Book';
+  btn.onclick = openBook;
+  face.appendChild(btn);
+}
+
+function openBook() {
+  openBookSound.currentTime = 0;
+  openBookSound.play().catch(() => {});
+
+  const bookWrap   = document.querySelector('.book-wrap');
+  const closedBook = document.getElementById('closedBook');
+
+  // X so the cover's right edge lands on the spread's right edge at animation end.
+  // Formula: X = wrapRight − coverRight  (both measured before any transform runs)
+  const shiftX = bookWrap.getBoundingClientRect().right
+               - closedBook.getBoundingClientRect().right;
+  closedBook.style.setProperty('--openShiftX', shiftX + 'px');
+
+  bookWrap.classList.add('opening');   // triggers spreadReveal on #book
+  closedBook.classList.add('opening'); // triggers coverOpen on .closed-book
+
+  // Switch to interactive mode exactly when the cover animation ends — no gap.
+  closedBook.addEventListener('animationend', function handler(e) {
+    if (e.animationName !== 'coverOpen') return;
+    closedBook.removeEventListener('animationend', handler);
+    bookWrap.classList.remove('opening');
+    bookMode = 'open';
+    document.body.classList.replace('mode-closed', 'mode-open');
+    render(); // rebuilds spread as interactive + bindAll
+  });
+}
+
+function buildSpread(si, interactive) {
+  const wrap = elt('div');
+  wrap.appendChild(buildPage(si, 'left',  interactive));
+  wrap.appendChild(buildPage(si, 'right', interactive));
+  return wrap;
+}
+
+function buildPage(si, side, interactive) {
+  const s   = spreads[si];
+  const div = elt('div', `page ${side}-page`);
+
+  if (s.type === 'cover') {
+    if (side === 'left') {
+      div.classList.add('cover-l');
+      const imprint = elt('div', 'cover-imprint');
+      imprint.dataset.placeholder = 'your name · year';
+      if (interactive) {
+        imprint.contentEditable = 'true';
+        imprint.textContent = s.imprint || '';
+        imprint.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); imprint.blur(); } });
+        imprint.addEventListener('blur', () => { spreads[0].imprint = imprint.textContent.trim(); scheduleSave(); });
+      } else {
+        imprint.textContent = s.imprint || '';
+      }
+      div.appendChild(imprint);
+    } else {
+      div.classList.add('cover-r');
+
+      // 1. Title
+      if (interactive) {
+        const inp = elt('div', 'cover-title');
+        inp.contentEditable = 'true'; inp.textContent = s.title;
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+        inp.addEventListener('blur', () => {
+          const val = inp.textContent.trim();
+          spreads[0].title = val || 'My Photobook';
+          if (!val) inp.textContent = 'My Photobook';
+          scheduleSave();
+        });
+        div.appendChild(inp);
+      } else {
+        const h2 = elt('div', 'cover-title'); h2.textContent = s.title; div.appendChild(h2);
+      }
+
+      // 2. Divider
+      div.appendChild(elt('div', 'cover-divider'));
+
+      // 3. Cover photo slot
+      const photoSlot = elt('div', 'cover-photo-slot' + (s.photo ? ' has-photo' : ''));
+      if (s.photo) {
+        const img = elt('img');
+        img.src = s.photo;
+        if (!img.complete) {
+          img.style.cssText = 'opacity:0;transform:scale(1.04);transition:opacity .4s ease,transform .4s ease';
+          img.onload = () => { img.style.opacity = '1'; img.style.transform = 'scale(1)'; };
+        }
+        photoSlot.appendChild(img);
+        if (interactive) {
+          const rm = elt('button', 'rm'); rm.textContent = '✕';
+          rm.addEventListener('click', e => {
+            e.stopPropagation();
+            spreads[0].photo = null; render(); scheduleSave();
+          });
+          photoSlot.appendChild(rm);
+        }
+      } else {
+        const icon = elt('div', 'add-icon'); icon.textContent = '＋';
+        const lbl  = elt('div', 'add-label'); lbl.textContent = interactive ? 'Cover Photo' : '';
+        photoSlot.appendChild(icon); photoSlot.appendChild(lbl);
+        if (interactive) {
+          const fileInp = elt('input');
+          fileInp.type = 'file'; fileInp.accept = 'image/*,.heic,.heif';
+          fileInp.style.cssText = 'position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:1';
+          fileInp.addEventListener('change', async e => {
+            const file = e.target.files[0]; if (!file) return;
+            photoSlot.classList.add('converting');
+            try {
+              spreads[0].photo = await readImageToDataURL(file);
+              render(); scheduleSave();
+            } catch(_) { photoSlot.classList.remove('converting'); }
+          });
+          photoSlot.appendChild(fileInp);
+        }
+      }
+      div.appendChild(photoSlot);
+
+      // 4. Subtitle
+      if (interactive) {
+        const subInp = elt('input', 'cover-sub');
+        subInp.type = 'text'; subInp.value = s.sub;
+        subInp.addEventListener('blur', () => { spreads[0].sub = subInp.value.trim() || 'Paris 2026'; scheduleSave(); });
+        const subField = elt('div', 'cover-field');
+        subField.appendChild(subInp);
+        div.appendChild(subField);
+      } else {
+        const subField = elt('div', 'cover-field');
+        const sub = elt('input', 'cover-sub');
+        sub.type = 'text'; sub.value = s.sub;
+        sub.readOnly = true; sub.style.pointerEvents = 'none';
+        subField.appendChild(sub);
+        div.appendChild(subField);
+      }
+    }
+    return div;
+  }
+
+  const p = s[side];
+
+  // Photo grid
+  const grid = elt('div', `photo-grid ${p.layout}`);
+  grid.style.cssText = 'flex:1;width:100%;';
+  p.photos.forEach((photo, pi) => grid.appendChild(buildSlot(si, side, pi, photo, interactive)));
+  div.appendChild(grid);
+
+  // Caption
+  const capWrap = elt('div', 'caption-wrap');
+  const capInp  = elt('input');
+  capInp.type        = 'text';
+  capInp.placeholder = 'Caption…';
+  capInp.value       = p.caption || '';
+  if (interactive) {
+    capInp.classList.add('cap');
+    capInp.dataset.s = si;
+    capInp.dataset.d = side;
+  } else {
+    capInp.readOnly            = true;
+    capInp.style.pointerEvents = 'none';
+  }
+  capWrap.appendChild(capInp);
+  div.appendChild(capWrap);
+
+  // Page number
+  const pgNum = elt('span', 'pg-num');
+  pgNum.textContent = pageNum(si, side);
+  div.appendChild(pgNum);
+
+  // Layout picker (interactive spreads only)
+  if (interactive) div.appendChild(buildLayoutBar(si, side, p.layout));
+
+  return div;
+}
+
+function buildSlot(si, side, pi, photo, interactive) {
+  const slot = elt('div', 'photo-slot' + (photo ? ' has-photo' : ''));
+  slot.dataset.si   = si;
+  slot.dataset.side = side;
+  slot.dataset.pi   = pi;
+
+  if (photo) {
+    const img = elt('img'); img.src = photo;
+    slot.appendChild(img);
+    if (interactive) {
+      const rm = elt('button', 'rm');
+      rm.textContent = '✕';
+      rm.dataset.s = si; rm.dataset.d = side; rm.dataset.p = pi;
+      slot.appendChild(rm);
+      slot.draggable = true;
+    }
+  } else {
+    const icon  = elt('div', 'add-icon');  icon.textContent  = '＋';
+    const label = elt('div', 'add-label'); label.textContent = 'Add Photo';
+    slot.appendChild(icon);
+    slot.appendChild(label);
+    if (interactive) {
+      const inp = elt('input');
+      inp.type   = 'file';
+      inp.accept = 'image/*,.heic,.heif';
+      inp.dataset.s = si; inp.dataset.d = side; inp.dataset.p = pi;
+      slot.appendChild(inp);
+    }
+  }
+  return slot;
+}
+
+function buildLayoutBar(si, side, activeLayout) {
+  const bar = elt('div', 'layout-bar');
+  (([s,r]) => [
+    { key:'single', label:`${s}<rect x="1" y="1" width="10" height="10" rx="0.5"/>${r}` },
+    { key:'two',    label:`${s}<rect x="1" y="1" width="10" height="4" rx="0.5"/><rect x="1" y="7" width="10" height="4" rx="0.5"/>${r}` },
+    { key:'trio',   label:`${s}<rect x="1" y="1" width="10" height="4" rx="0.5"/><rect x="1" y="7" width="4" height="4" rx="0.5"/><rect x="7" y="7" width="4" height="4" rx="0.5"/>${r}` },
+    { key:'quad',   label:`${s}<rect x="1" y="1" width="4" height="4" rx="0.5"/><rect x="7" y="1" width="4" height="4" rx="0.5"/><rect x="1" y="7" width="4" height="4" rx="0.5"/><rect x="7" y="7" width="4" height="4" rx="0.5"/>${r}` },
+  ])([
+    `<svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">`,
+    `</svg>`
+  ])
+  .forEach(({ key, label }) => {
+    const btn = elt('button', 'layout-btn' + (activeLayout === key ? ' active' : ''));
+    btn.innerHTML = label; btn.title = key;
+    btn.onclick = e => { e.stopPropagation(); playClickSfx(); setLayout(si, side, key); };
+    bar.appendChild(btn);
+  });
+  return bar;
+}
+
+function setLayout(si, side, layout) {
+  const p = spreads[si][side];
+  const existing = p.photos.filter(x => x);
+  p.photos = Array.from({ length: LAYOUT_PHOTO_COUNT[layout] }, (_, i) => existing[i] || null);
+  p.layout = layout;
+
+  // Surgical update — replace only the photo grid so the layout bar stays in the
+  // DOM and hover state is preserved (no full render() → no flicker).
+  const pageEl = document.querySelector(`.${side}-page`);
+  if (!pageEl) { render(); scheduleSave(); return; } // safety fallback during flip
+
+  const oldGrid = pageEl.querySelector('.photo-grid');
+  const newGrid = elt('div', `photo-grid ${layout}`);
+  newGrid.style.cssText = 'flex:1;width:100%;';
+  p.photos.forEach((photo, pi) => newGrid.appendChild(buildSlot(si, side, pi, photo, true)));
+  pageEl.replaceChild(newGrid, oldGrid);
+
+  // Sync active state on layout bar without rebuilding it
+  pageEl.querySelectorAll('.layout-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.title === layout)
+  );
+
+  bindAll(newGrid); // bind only the new slots (file inputs, rm buttons, drag)
+  scheduleSave();
+}
+
+// Copy children + classes + background from a built .page element into a .flipper-face element
+function clonePageContent(pageEl, faceEl) {
+  pageEl.childNodes.forEach(n => faceEl.appendChild(n.cloneNode(true)));
+  faceEl.className += ' ' + pageEl.className;   // carry over cover-l / cover-r / etc.
+  applyPageBg(pageEl, faceEl);
+}
+
+/* ══════════════════════════════════════════════════════════
+   NAVIGATION & FLIP
+   ══════════════════════════════════════════════════════════ */
+
+function go(dir, onDone) {
+  if (animating) return;
+  const next = current + dir;
+  if (next < 0 || next >= spreads.length) return;
+  playFlipSfx();
+  animating = true;
+
+  const book    = document.getElementById('book');
+  const forward = dir > 0;
+
+  // Capture old spread before any DOM changes.
+  const oldSpread = book.querySelector('.spread');
+
+  // Build flipper faces from current spread — underlying spread is NOT changed yet.
+  // front = the page being "lifted"; back = what's revealed as it lands.
+  const fc = elt('div', `flipper-container ${forward ? 'flip-forward' : 'flip-backward'}`);
+
+  const frontSide = forward ? 'right' : 'left';
+  const front     = elt('div', `flipper-face face-front ${frontSide}-page`);
+  clonePageContent(buildPage(current, frontSide, false), front);
+  fc.appendChild(front);
+
+  const backSide = forward ? 'left' : 'right';
+  const back     = elt('div', `flipper-face face-back ${backSide}-page`);
+  clonePageContent(buildPage(next, backSide, false), back);
+  fc.appendChild(back);
+
+  // Prebuild next spread at full opacity, inserted BEHIND oldSpread (before it in DOM).
+  // oldSpread is on top and fully opaque, so newSpread is occluded but fully painted —
+  // no opacity:0 deferral, so fonts and layout render immediately.
+  const newSpread = buildSpread(next, !isReadMode);
+  newSpread.classList.add('spread');
+  book.insertBefore(newSpread, oldSpread);
+
+  // Append flipper — CSS animation starts now. Underlying spreads stay as-is.
+  book.appendChild(fc);
+
+  // Shadow strip at the spine — animated with WAAPI so timing is always reliable.
+  const shadow = elt('div', 'flip-mid-shadow');
+  book.appendChild(shadow);
+  shadow.animate([{opacity:0},{opacity:1},{opacity:0}], {duration:700, easing:'ease-in-out'});
+
+  // At ~50% the flipper is edge-on (90°). Crossfade old→new spread over 100ms so
+  // the non-flipping side dissolves in without a hard pop.
+  const FADE_MS = 100;
+  let switched  = false;
+  const anim     = fc.getAnimations()[0];
+  const duration = anim ? anim.effect.getTiming().duration : 350;
+  function pollMidpoint() {
+    if (switched) return;
+    const t = anim ? (anim.currentTime ?? 0) : duration;
+    if (t >= duration * 0.5) {
+      switched = true;
+      current  = next;
+      scheduleSave();
+      updateUI();
+      // Fade oldSpread OUT over newSpread — newSpread was always opacity:1 so it's
+      // fully painted (no font-lag). oldSpread acts as cover until it fades away.
+      oldSpread.animate(
+        [{ opacity: 1 }, { opacity: 0 }],
+        { duration: FADE_MS, easing: 'ease-in-out', fill: 'forwards' }
+      ).onfinish = () => {
+        oldSpread.remove();
+        bindAll();
+      };
+    } else {
+      requestAnimationFrame(pollMidpoint);
+    }
+  }
+  requestAnimationFrame(pollMidpoint);
+
+  // finishFlip runs exactly once on the container's own animationend; bubbled
+  // events from child elements are ignored via the e.target guard.
+  function finishFlip(e) {
+    if (e.target !== fc) return;
+    fc.removeEventListener('animationend', finishFlip);
+    fc.remove();
+    shadow.remove();
+    animating = false;
+    if (onDone) onDone();
+  }
+  fc.addEventListener('animationend', finishFlip);
+}
+
+// Step-by-step multi-flip to a target spread index (used by tray click-to-navigate).
+// Each flip's onDone callback chains the next step until current === target.
+function goTo(target) {
+  if (target === current) return;
+  const dir = target > current ? 1 : -1;
+  function step() { if (current !== target) go(dir, step); }
+  step();
+}
+
+function addPages() {
+  if (animating) return;
+  spreads.splice(current + 1, 0, {
+    type:  'spread',
+    left:  { layout:'single', photos:[null],       caption:'' },
+    right: { layout:'two',    photos:[null, null],  caption:'' },
+  });
+  go(1);
+}
+
+function deletePage() {
+  if (animating) return;
+  if (current === 0) return;         // cover is undeletable
+  if (spreads.length <= 2) return;   // always keep at least one spread
+  if (!confirm('Delete this spread?')) return;
+  spreads.splice(current, 1);
+  if (current >= spreads.length) current = spreads.length - 1;
+  render();
+  scheduleSave();
+}
+
+function positionControls() {
+  const bookWrap = document.querySelector('.book-wrap');
+  const controls = document.querySelector('.controls');
+  const title    = document.querySelector('h1');
+  if (!bookWrap) return;
+  const r = bookWrap.getBoundingClientRect();
+  const cx = (r.left + r.width / 2) + 'px';
+  if (controls) {
+    controls.style.left      = cx;
+    controls.style.top       = (r.bottom + 24) + 'px';
+    controls.style.transform = 'translateX(-50%)';
+  }
+  if (title) {
+    title.style.left      = cx;
+    title.style.top       = (r.top - 24 - title.offsetHeight) + 'px';
+    title.style.transform = 'translateX(-50%)';
+  }
+}
+
+function updateUI() {
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === spreads.length - 1;
+  document.getElementById('delBtn').disabled  = current === 0 || spreads.length <= 2;
+  document.getElementById('ind').textContent  = current === 0
+    ? 'Cover'
+    : `Pages ${spreadLabel(current)} / ${(spreads.length - 1) * 2}`;
+  requestAnimationFrame(positionControls);
+}
+
+window.addEventListener('resize', positionControls);
+
+/* ══════════════════════════════════════════════════════════
+   PHOTO UPLOAD & IMAGE DECODING
+   ══════════════════════════════════════════════════════════ */
+
+// HEIC decode fallback chain:
+//   1. createImageBitmap — native (Safari, Chrome w/ OS codec)
+//   2. <img> tag         — some browsers support HEIC via OS codecs
+//   3. VideoDecoder API  — manual HEVC bitstream extraction + GPU decode
+async function readImageToDataURL(file) {
+  const name   = file.name || '';
+  const mime   = file.type || '';
+  const isHEIC = /\.(heic|heif)$/i.test(name) || mime === 'image/heic' || mime === 'image/heif';
+  if (!isHEIC) {
+    try { return bitmapToDataURL(await createImageBitmap(file)); } catch(_) {}
+    return imgTagDecode(file);
+  }
+  // HEIC: try each tier in order, throw only if all fail
+  try { return bitmapToDataURL(await createImageBitmap(file)); } catch(_) {}
+  try { return await imgTagDecode(file); }                       catch(_) {}
+  if (typeof VideoDecoder !== 'undefined') {
+    try { return await decodeHEICwithVideoDecoder(file); } catch(e) { console.warn('VideoDecoder:', e.message); }
+  }
+  throw new Error('HEIC_UNSUPPORTED');
+}
+
+function imgTagDecode(blob) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      res(c.toDataURL('image/jpeg', .88));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img fail')); };
+    img.src = url;
+  });
+}
+
+function bitmapToDataURL(bmp) {
+  const c = document.createElement('canvas');
+  c.width = bmp.width; c.height = bmp.height;
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  bmp.close();
+  return c.toDataURL('image/jpeg', .88);
+}
+
+// Low-level ISOBMFF / HEVC bitstream helpers for decodeHEICwithVideoDecoder
+function r32(d,p){return((d[p]<<24)|(d[p+1]<<16)|(d[p+2]<<8)|d[p+3])>>>0;}
+function r16(d,p){return(d[p]<<8)|d[p+1];}
+function r64(d,p){return r32(d,p)*4294967296+r32(d,p+4);}
+function fcc(d,p){return String.fromCharCode(d[p],d[p+1],d[p+2],d[p+3]);}
+function parseBoxes(d,s,e){const l=[];let p=s;while(p+8<=e){let sz=r32(d,p),hdr=8;const t=fcc(d,p+4);if(sz===1){sz=r64(d,p+8);hdr=16;}if(sz===0)sz=e-p;if(sz<hdr||p+sz>e)break;l.push({type:t,s:p,e:p+sz,d:p+hdr});p+=sz;}return l;}
+function findBox(d,s,e,t){return parseBoxes(d,s,e).find(b=>b.type===t);}
+
+async function decodeHEICwithVideoDecoder(file) {
+  const data=new Uint8Array(await file.arrayBuffer()),N=data.length;
+  const tops=parseBoxes(data,0,N),meta=tops.find(b=>b.type==='meta');
+  if(!meta) throw new Error('No meta');
+  const mc=meta.d+4,me=meta.e;
+  const pitm=findBox(data,mc,me,'pitm'),pitmVer=pitm?data[pitm.d]:0;
+  const primaryId=pitm?(pitmVer===0?r16(data,pitm.d+4):r32(data,pitm.d+4)):1;
+  const iloc=findBox(data,mc,me,'iloc'); if(!iloc) throw new Error('No iloc');
+  const ilocVer=data[iloc.d],fd=iloc.d+4;
+  const offSz=(data[fd]>>4)&0xf,lenSz=data[fd]&0xf,baseSz=(data[fd+1]>>4)&0xf;
+  const cntSz=ilocVer<2?2:4,itemCount=cntSz===2?r16(data,fd+2):r32(data,fd+2);
+  let ip=fd+2+cntSz,chunkOffset=-1,chunkLength=-1;
+  for(let i=0;i<itemCount;i++){
+    const id=ilocVer<2?r16(data,ip):r32(data,ip); ip+=ilocVer<2?2:4;
+    if(ilocVer===1||ilocVer===2)ip+=2; ip+=2;
+    let base=0;
+    if(baseSz===4){base=r32(data,ip);ip+=4;}else if(baseSz===8){base=r64(data,ip);ip+=8;}
+    const extCnt=r16(data,ip);ip+=2;
+    for(let e=0;e<extCnt;e++){
+      let off=0,elen=0;
+      if(offSz===4){off=r32(data,ip);ip+=4;}else if(offSz===8){off=r64(data,ip);ip+=8;}
+      if(lenSz===4){elen=r32(data,ip);ip+=4;}else if(lenSz===8){elen=r64(data,ip);ip+=8;}
+      if(id===primaryId){chunkOffset=base+off;chunkLength=elen;}
+    }
+  }
+  if(chunkOffset<0) throw new Error('Primary item not found in iloc');
+  const iprp=findBox(data,mc,me,'iprp');if(!iprp)throw new Error('No iprp');
+  const ipco=findBox(data,iprp.d,iprp.e,'ipco');if(!ipco)throw new Error('No ipco');
+  const hvcCBox=findBox(data,ipco.d,ipco.e,'hvcC');if(!hvcCBox)throw new Error('No hvcC');
+  const hvcC=data.slice(hvcCBox.d,hvcCBox.e);
+  const ps=(hvcC[1]>>6)&0x3,tier=(hvcC[1]>>5)&0x1,pidc=hvcC[1]&0x1f,lvl=hvcC[12];
+  const codec=`hvc1.${['','A','B','C'][ps]}${pidc}.4.${tier?'H':'L'}${lvl}.B0`;
+  const ispe=findBox(data,ipco.d,ipco.e,'ispe');
+  const width=ispe?r32(data,ispe.d+4):1920,height=ispe?r32(data,ispe.d+8):1080;
+  const raw=data.slice(chunkOffset,chunkOffset+chunkLength);
+  const naluLenSize=(hvcC[21]&0x3)+1,SC=new Uint8Array([0,0,0,1]),parts=[];
+  let hp=22,na=hvcC[hp++];
+  for(let a=0;a<na;a++){hp++;const cnt=(hvcC[hp]<<8)|hvcC[hp+1];hp+=2;for(let n=0;n<cnt;n++){const nl=(hvcC[hp]<<8)|hvcC[hp+1];hp+=2;parts.push(SC,hvcC.slice(hp,hp+nl));hp+=nl;}}
+  let ri=0;while(ri+naluLenSize<=raw.length){let nl=0;for(let b=0;b<naluLenSize;b++)nl=(nl<<8)|raw[ri+b];ri+=naluLenSize;if(nl<=0||ri+nl>raw.length)break;parts.push(SC,raw.slice(ri,ri+nl));ri+=nl;}
+  const tot=parts.reduce((n,p)=>n+p.length,0),annexB=new Uint8Array(tot);let off=0;
+  for(const part of parts){annexB.set(part,off);off+=part.length;}
+  return new Promise((res,rej)=>{
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d');let done=false;
+    const dec=new VideoDecoder({
+      output:frame=>{if(!done){done=true;ctx.drawImage(frame,0,0);frame.close();dec.close();res(canvas.toDataURL('image/jpeg',.88));}else frame.close();},
+      error:e=>{if(!done){done=true;rej(e);}}
+    });
+    dec.configure({codec,description:hvcC.buffer.slice(hvcC.byteOffset,hvcC.byteOffset+hvcC.byteLength),codedWidth:width,codedHeight:height});
+    dec.decode(new EncodedVideoChunk({type:'key',timestamp:0,data:annexB}));
+    dec.flush().catch(e=>{if(!done){done=true;rej(e);}});
+  });
+}
+
+function showHeicHelp() {
+  document.getElementById('heic-toast')?.remove();
+  const t = document.createElement('div'); t.id = 'heic-toast';
+  t.innerHTML=`<div id="heic-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:200;font-family:'Lato',sans-serif;"><div style="background:#2a1608;border:1px solid rgba(201,168,76,.4);border-radius:14px;padding:26px 28px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6);color:#e8dcc8;line-height:1.6;"><div style="font-size:2rem;margin-bottom:8px;">📸</div><div style="font-family:'Playfair Display',serif;color:#c9a84c;font-size:1rem;margin-bottom:10px;">HEIC photo — quick fix</div><div style="background:rgba(255,255,255,.06);border-radius:8px;padding:11px;margin-bottom:7px;font-size:.77rem;">📱 iPhone: Settings → Camera → Formats → <b>Most Compatible</b></div><div style="background:rgba(255,255,255,.06);border-radius:8px;padding:11px;margin-bottom:7px;font-size:.77rem;">💻 Mac: Open in Preview → File → Export → JPEG</div><div style="background:rgba(255,255,255,.06);border-radius:8px;padding:11px;margin-bottom:16px;font-size:.77rem;">🌐 Online: <b>heictojpg.com</b></div><button onclick="document.getElementById('heic-toast').remove()" style="width:100%;padding:9px;border-radius:8px;background:rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.5);color:#c9a84c;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">Got it</button></div></div>`;
+  document.body.appendChild(t);
+  document.getElementById('heic-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) t.remove(); });
+}
+
+/* ══════════════════════════════════════════════════════════
+   DRAG & DROP
+   ══════════════════════════════════════════════════════════ */
+
+let dragSrc = null;    // { si, side, pi } — source photo slot for the current drag
+let dragPreview = null; // off-screen element used as the custom drag ghost
+
+function swapPhotos(src, dst) {
+  const srcArr = spreads[src.si][src.side].photos;
+  const dstArr = spreads[dst.si][dst.side].photos;
+  const tmp    = srcArr[src.pi];
+  srcArr[src.pi] = dstArr[dst.pi];
+  dstArr[dst.pi] = tmp;
+}
+
+function bindPhotoDrag(root = document) {
+  root.querySelectorAll('.photo-slot[draggable]').forEach(slot => {
+    slot.addEventListener('dragstart', e => {
+      dragSrc = { si:+slot.dataset.si, side:slot.dataset.side, pi:+slot.dataset.pi };
+      e.dataTransfer.effectAllowed = 'move';
+
+      // Build a custom drag ghost that visibly follows the cursor
+      const img = slot.querySelector('img');
+      const preview = document.createElement('div');
+      preview.style.cssText = [
+        'position:fixed', 'top:-9999px', 'left:-9999px',
+        'width:80px', 'height:80px', 'border-radius:8px', 'overflow:hidden',
+        'box-shadow:0 12px 32px rgba(0,0,0,.6),0 3px 10px rgba(0,0,0,.35)',
+        'pointer-events:none', 'background:#e5dece',
+        'outline:1.5px solid rgba(201,168,76,.55)'
+      ].join(';');
+      if (img) {
+        const ci = img.cloneNode();
+        ci.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+        preview.appendChild(ci);
+      }
+      document.body.appendChild(preview);
+      e.dataTransfer.setDragImage(preview, 40, 40);
+      dragPreview = preview;
+
+      // Defer so the browser captures the ghost before the transform applies
+      requestAnimationFrame(() => slot.classList.add('dragging'));
+    });
+    slot.addEventListener('dragend', () => {
+      slot.classList.remove('dragging');
+      clearDragOver('drag-over');
+      if (dragPreview) { dragPreview.remove(); dragPreview = null; }
+    });
+  });
+
+  root.querySelectorAll('.photo-slot').forEach(slot => {
+    slot.addEventListener('dragover', e => {
+      if (!dragSrc) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      slot.classList.add('drag-over');
+    });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+    slot.addEventListener('drop', e => {
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      if (!dragSrc) return;
+      const dst = { si:+slot.dataset.si, side:slot.dataset.side, pi:+slot.dataset.pi };
+      if (dragSrc.si===dst.si && dragSrc.side===dst.side && dragSrc.pi===dst.pi) return;
+      const src = { ...dragSrc };
+      swapPhotos(dragSrc, dst);
+      dragSrc = null;
+      render();
+      // Snap both affected slots into place
+      [src, dst].forEach(({ si, side, pi }) => {
+        const el = document.querySelector(`.photo-slot[data-si="${si}"][data-side="${side}"][data-pi="${pi}"]`);
+        if (el) { el.classList.add('snap'); el.addEventListener('animationend', () => el.classList.remove('snap'), { once:true }); }
+      });
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   PAGE TRAY
+   ══════════════════════════════════════════════════════════ */
+
+let trayDragIdx = null; // index of the spread being dragged within the tray
+
+function openTray()  { renderTray(); document.getElementById('trayOverlay').classList.add('open'); }
+function closeTray() { document.getElementById('trayOverlay').classList.remove('open'); }
+function closeTrayIfBg(e) { if (e.target === document.getElementById('trayOverlay')) closeTray(); }
+
+function renderTray() {
+  const scroll = document.getElementById('trayScroll');
+  scroll.innerHTML = '';
+  spreads.forEach((s, i) => {
+    const item = elt('div', 'tray-item' + (i === current ? ' current-tray' : ''));
+    item.draggable   = i > 0 && !isReadMode; // cover is not draggable; disabled in read mode
+    item.dataset.idx = i;
+
+    // Thumbnail
+    const thumb = elt('div', 'tray-thumb');
+    const lh = elt('div'), rh = elt('div');
+    if (s.type === 'cover') {
+      lh.className = 'tray-half light-l'; rh.className = 'tray-half dark';
+      if (s.photo) {
+        appendThumbnailImage(rh, s.photo);
+      } else {
+        rh.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:.55rem;color:rgba(201,168,76,.7);font-family:'Playfair Display',serif;padding:2px;text-align:center">${s.title}</div>`;
+      }
+    } else {
+      lh.className = 'tray-half light-l'; rh.className = 'tray-half light-r';
+      const lp = s.left.photos.find(x => x), rp = s.right.photos.find(x => x);
+      if (lp) appendThumbnailImage(lh, lp);
+      if (rp) appendThumbnailImage(rh, rp);
+    }
+    thumb.appendChild(lh); thumb.appendChild(rh);
+    item.appendChild(thumb);
+
+    const label = elt('div', 'tray-label');
+    label.textContent = spreadLabel(i);
+    item.appendChild(label);
+
+    item.addEventListener('click', () => { closeTray(); goTo(i); });
+
+    // Drag-to-reorder within the tray
+    item.addEventListener('dragstart', e => {
+      if (isReadMode || i === 0) { e.preventDefault(); return; }
+      trayDragIdx = i;
+      item.classList.add('dragging-tray');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging-tray');
+      clearDragOver('drag-tray-over');
+      trayDragIdx = null;
+    });
+    item.addEventListener('dragover', e => {
+      if (isReadMode || trayDragIdx === null || i === 0 || i === trayDragIdx) return;
+      e.preventDefault(); item.classList.add('drag-tray-over');
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-tray-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault(); item.classList.remove('drag-tray-over');
+      if (isReadMode || trayDragIdx === null || i === 0 || i === trayDragIdx) return;
+      const moved = spreads.splice(trayDragIdx, 1)[0];
+      const newPos = i > trayDragIdx ? i : i; // NOTE: both branches return i (pre-existing)
+      spreads.splice(newPos, 0, moved);
+      // Adjust current to follow its spread to its new index after the reorder
+      if      (current === trayDragIdx)                   current = newPos;
+      else if (current > trayDragIdx && current <= newPos) current--;
+      else if (current < trayDragIdx && current >= newPos) current++;
+      trayDragIdx = null;
+      render(); renderTray();
+      scheduleSave();
+    });
+
+    scroll.appendChild(item);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   EVENT BINDING
+   ══════════════════════════════════════════════════════════ */
+
+function bindAll(root = document) {
+  // File upload — async to handle image decode; 'converting' class shown while loading
+  root.querySelectorAll('input[type=file]').forEach(inp => {
+    inp.addEventListener('change', async e => {
+      e.stopPropagation();
+      const file = e.target.files[0]; if (!file) return;
+      const si = +inp.dataset.s, side = inp.dataset.d, pi = +inp.dataset.p;
+      const slot = inp.closest('.photo-slot');
+      if (!slot) return; // cover photo slot has its own inline handler
+      slot.classList.add('converting');
+      try {
+        const dataUrl = await readImageToDataURL(file);
+        spreads[si][side].photos[pi] = dataUrl;
+        render();
+        scheduleSave();
+      } catch(err) {
+        slot.classList.remove('converting');
+        if (err.message === 'HEIC_UNSUPPORTED') showHeicHelp();
+        else alert('Could not load image. Please use JPEG, PNG, or WEBP.');
+      }
+    });
+  });
+
+  // Caption: update data model only — no re-render needed
+  root.querySelectorAll('.cap').forEach(inp => {
+    inp.addEventListener('input', () => { spreads[+inp.dataset.s][inp.dataset.d].caption = inp.value; scheduleSave(); });
+  });
+
+  // Remove photo button
+  root.querySelectorAll('.rm').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      spreads[+btn.dataset.s][btn.dataset.d].photos[+btn.dataset.p] = null;
+      render();
+      scheduleSave();
+    });
+  });
+
+  bindPhotoDrag(root);
+}
+
+// Arrow-key navigation; skip when focus is inside an input
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight') go(1);
+  if (e.key === 'ArrowLeft')  go(-1);
+});
+
+/* ══════════════════════════════════════════════════════════
+   SUPABASE
+   ══════════════════════════════════════════════════════════ */
+
+const SUPABASE_URL      = 'https://gdrsguikhuclrdmdrvhc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkcnNndWlraHVjbHJkbWRydmhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMjYzMjcsImV4cCI6MjA4NzgwMjMyN30.6vSPoNPK_yBamRuMW7pijF9LNfQqNjzKpE3KlgLH0XU';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ══════════════════════════════════════════════════════════
+   SHARE
+   ══════════════════════════════════════════════════════════ */
+
+const SHARE_ID_KEY = 'photobook_shareId';
+const OWNER_KEY_LS = 'photobook_ownerKey';
+
+function getOrCreateShareId() {
+  let id = localStorage.getItem(SHARE_ID_KEY);
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem(SHARE_ID_KEY, id); }
+  return id;
+}
+
+function getOrCreateOwnerKey() {
+  let k = localStorage.getItem(OWNER_KEY_LS);
+  if (!k) { k = crypto.randomUUID(); localStorage.setItem(OWNER_KEY_LS, k); }
+  return k;
+}
+
+// Deep-copies book data, uploads any data-URL photos to Storage,
+// and replaces them with public HTTPS URLs.
+async function prepareBookDataForUpload(bookId) {
+  const d  = JSON.parse(JSON.stringify(getBookData()));
+  const up = async (dataUrl, path) => {
+    if (!dataUrl?.startsWith('data:')) return dataUrl ?? null;
+    const blob = dataURLtoBlob(dataUrl);
+    const ext  = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+    const full = `${bookId}/${path}.${ext}`;
+    const { error } = await sb.storage.from('book-assets')
+      .upload(full, blob, { upsert: true, contentType: blob.type });
+    if (error) throw error;
+    return sb.storage.from('book-assets').getPublicUrl(full).data.publicUrl;
+  };
+  d.spreads[0].photo = await up(d.spreads[0].photo, 'cover');
+  d.coverPhoto = d.spreads[0].photo;
+  for (let i = 1; i < d.spreads.length; i++) {
+    for (const side of ['left', 'right']) {
+      const photos = d.spreads[i][side].photos;
+      for (let j = 0; j < photos.length; j++)
+        photos[j] = await up(photos[j], `s${i}_${side}_${j}`);
+    }
+  }
+  return d;
+}
+
+function setShareState(state, url) {
+  const btn   = document.getElementById('shareCopyBtn');
+  const input = document.getElementById('shareUrlInput');
+  btn.classList.remove('copied');
+  if (state === 'working') {
+    input.value  = 'Generating share link…';
+    btn.disabled = true;
+  } else if (state === 'ready') {
+    input.value  = url;
+    btn.disabled = false;
+  } else if (state === 'copied') {
+    btn.classList.add('copied');
+    btn.textContent = 'Copied';
+    btn.disabled = false;
+  } else if (state === 'error') {
+    input.value  = url; // error message passed as url param
+    btn.disabled = false;
+  }
+}
+
+async function openShareModal() {
+  const btn = document.getElementById('shareCopyBtn');
+  setShareState('working');
+  document.getElementById('shareOverlay').classList.add('open');
+  try {
+    const ownerKey = getOrCreateOwnerKey();
+    const bookId   = getOrCreateShareId();
+    const data     = await prepareBookDataForUpload(bookId);
+    const { data: id, error } = await sb.rpc('upsert_book',
+      { p_id: bookId, p_owner_key: ownerKey, p_data: data });
+    if (error) throw error;
+    localStorage.setItem(SHARE_ID_KEY, id);
+    const url = `${location.origin}${location.pathname}?share=${id}`;
+    setShareState('ready', url);
+  } catch(err) {
+    setShareState('error', 'Upload failed — try again.');
+    console.error('Share error:', err);
+  }
+}
+
+function closeShareModal() {
+  document.getElementById('shareOverlay').classList.remove('open');
+}
+
+function closeShareIfBg(e) {
+  if (e.target === document.getElementById('shareOverlay')) closeShareModal();
+}
+
+function copyShareLink() {
+  const url = document.getElementById('shareUrlInput').value;
+  navigator.clipboard.writeText(url).then(() => {
+    setShareState('copied');
+  }).catch(() => {
+    document.getElementById('shareUrlInput').select();
+    document.execCommand('copy');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXPORT / IMPORT
+   ══════════════════════════════════════════════════════════ */
+
+function exportBook() {
+  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const json = JSON.stringify(getBookData(), null, 2);
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(new Blob([json], { type:'application/json' }));
+  a.download = `photobook-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importBookPicker() {
+  document.getElementById('importInput').value = '';
+  document.getElementById('importInput').click();
+}
+
+function importBook(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data?.spreads) { alert('Invalid photobook file.'); return; }
+      if (!confirm('Import will replace your current book. Continue?')) return;
+      loadBookData(data);
+      scheduleSave();
+    } catch(_) { alert('Could not read file.'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ── READ MODE STARTUP ── */
+if (shareId) {
+  (async () => {
+    try {
+      const { data: row, error } = await sb.from('books')
+        .select('data').eq('id', shareId).single();
+      if (!error && row?.data) {
+        isReadMode = true;
+        bookMode   = 'open';
+        document.body.classList.remove('mode-closed');
+        document.body.classList.add('mode-open', 'mode-read');
+        loadBookData(row.data);
+      } else {
+        showShareNotFound();
+      }
+    } catch(_) { showShareNotFound(); }
+  })();
+} else {
+  persistLoad(); // normal editor startup
+}
+
+function showShareNotFound() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(10,5,2,.85);display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(160deg,#2a1a0e,#1a0e06);border:1px solid rgba(201,168,76,.25);
+      border-radius:14px;padding:36px 32px;max-width:380px;text-align:center;
+      box-shadow:0 24px 60px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:14px;">
+      <div style="font-size:2rem;">📖</div>
+      <h2 style="font-family:'Playfair Display',serif;color:#f5f0e8;font-size:1.1rem;margin:0;">Book not available</h2>
+      <p style="color:rgba(232,220,200,.5);font-size:.8rem;line-height:1.6;margin:0;">
+        This shared book could not be found.<br>
+        The link may be invalid or the book may have been removed.
+      </p>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+</script>
+</body>
+</html>
