@@ -153,7 +153,7 @@ function appendThumbnailImage(container, src) {
    ══════════════════════════════════════════════════════════ */
 
 const DB_NAME = 'photobookDB', DB_VER = 1, DB_STORE = 'state', LS_KEY = 'photobook_v1';
-let idbAvail = null, saveTimer = null, _db = null;
+let idbAvail = null, _db = null;
 
 function openDB() {
   if (_db) return Promise.resolve(_db);
@@ -266,14 +266,45 @@ async function persistClear() {
   localStorage.removeItem(LS_KEY);
 }
 
-function scheduleSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(persistSave, 400);
+function debounce(fn, wait = 300) {
+  let timer;
+  const debounced = (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; fn.apply(this, args); }, wait);
+  };
+  debounced.flush  = () => { if (timer) { clearTimeout(timer); timer = null; return fn(); } return Promise.resolve(); };
+  debounced.cancel = () => { clearTimeout(timer); timer = null; };
+  return debounced;
+}
+const scheduleSave = debounce(persistSave, 300);
+
+/* ── IMAGE PRELOAD CACHE ── */
+const preloadCache = new Map();
+
+function preloadImage(src) {
+  if (!src || preloadCache.has(src)) return;
+  const img = new Image();
+  img.src = src;
+  preloadCache.set(src,
+    typeof img.decode === 'function'
+      ? img.decode().catch(() => {})
+      : new Promise(res => { img.onload = img.onerror = res; })
+  );
+}
+
+function preloadSpread(index) {
+  if (index < 0 || index >= spreads.length) return;
+  const s = spreads[index];
+  if (s.type === 'cover') {
+    if (s.photo) preloadImage(s.photo);
+  } else {
+    for (const side of ['left', 'right']) s[side]?.photos?.forEach(p => p && preloadImage(p));
+  }
 }
 
 function resetBook() {
   if (!confirm('Reset this book? This will remove all photos and captions saved on this device.')) return;
-  clearTimeout(saveTimer);
+  scheduleSave.cancel();
   persistClear();
   spreads = [
     { type:'cover', title:'My Photobook', sub:'Paris 2026', photo:null, imprint:'' },
@@ -301,6 +332,8 @@ function render() {
   if (bookMode === 'closed') { renderClosedBook(); return; }
   updateUI();
   bindAll();
+  preloadSpread(current + 1);
+  preloadSpread(current - 1);
 }
 
 function renderClosedBook() {
@@ -310,7 +343,7 @@ function renderClosedBook() {
   const s = spreads[0];
 
   // Title — reuses cover-title class for identical styling
-  const title = elt('div', 'cover-title');
+  const title = elt('div', 'cover-title edit-field');
   title.contentEditable = 'true'; title.textContent = s.title;
   title.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); title.blur(); } });
   title.addEventListener('blur', () => {
@@ -324,7 +357,7 @@ function renderClosedBook() {
   face.appendChild(elt('div', 'cover-divider'));
 
   // Subtitle — reuses cover-field / cover-sub for identical styling + pen affordance
-  const subField = elt('div', 'cover-field');
+  const subField = elt('div', 'cover-field edit-field');
   const subInp   = elt('input', 'cover-sub');
   subInp.type = 'text'; subInp.value = s.sub;
   subInp.addEventListener('blur', () => { spreads[0].sub = subInp.value.trim() || 'Paris 2026'; scheduleSave(); });
@@ -345,14 +378,23 @@ function openBook() {
   const bookWrap   = document.querySelector('.book-wrap');
   const closedBook = document.getElementById('closedBook');
 
-  // X so the cover's right edge lands on the spread's right edge at animation end.
-  // Formula: X = wrapRight − coverRight  (both measured before any transform runs)
+  // Set cover spread BEFORE animation so #book already shows it when revealed.
+  // render() pre-renders spreads[0] into #book (non-interactive, bookMode still
+  // 'closed') — the spreadReveal animation will fade this in behind the cover.
+  current = 0;
+  render();
+
+  // Measure after render; #book content change doesn't affect these rects.
   const shiftX = bookWrap.getBoundingClientRect().right
                - closedBook.getBoundingClientRect().right;
   closedBook.style.setProperty('--openShiftX', shiftX + 'px');
 
-  bookWrap.classList.add('opening');   // triggers spreadReveal on #book
-  closedBook.classList.add('opening'); // triggers coverOpen on .closed-book
+  // rAF: yield to browser paint so the new #book DOM is composited before the
+  // animation classes trigger the CSS transitions — prevents wrong-spread flash.
+  requestAnimationFrame(() => {
+    bookWrap.classList.add('opening');   // triggers spreadReveal on #book
+    closedBook.classList.add('opening'); // triggers coverOpen on .closed-book
+  });
 
   // Switch to interactive mode exactly when the cover animation ends — no gap.
   closedBook.addEventListener('animationend', function handler(e) {
@@ -360,9 +402,9 @@ function openBook() {
     closedBook.removeEventListener('animationend', handler);
     bookWrap.classList.remove('opening');
     bookMode = 'open';
-    if (isReadMode) current = 0; // read mode always opens to cover
+    // current is already 0 — no need to set again
     document.body.classList.replace('mode-closed', 'mode-open');
-    render(); // rebuilds spread as interactive + bindAll
+    render(); // re-renders cover spread as interactive + bindAll
   });
 }
 
@@ -383,6 +425,7 @@ function buildPage(si, side, interactive) {
       const imprint = elt('div', 'cover-imprint');
       imprint.dataset.placeholder = 'your name · year';
       if (interactive) {
+        imprint.classList.add('edit-field');
         imprint.contentEditable = 'true';
         imprint.textContent = s.imprint || '';
         imprint.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); imprint.blur(); } });
@@ -396,7 +439,7 @@ function buildPage(si, side, interactive) {
 
       // 1. Title
       if (interactive) {
-        const inp = elt('div', 'cover-title');
+        const inp = elt('div', 'cover-title edit-field');
         inp.contentEditable = 'true'; inp.textContent = s.title;
         inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
         inp.addEventListener('blur', () => {
@@ -472,7 +515,7 @@ function buildPage(si, side, interactive) {
         const subInp = elt('input', 'cover-sub');
         subInp.type = 'text'; subInp.value = s.sub;
         subInp.addEventListener('blur', () => { spreads[0].sub = subInp.value.trim() || 'Paris 2026'; scheduleSave(); });
-        const subField = elt('div', 'cover-field');
+        const subField = elt('div', 'cover-field edit-field');
         subField.appendChild(subInp);
         div.appendChild(subField);
       } else {
@@ -502,6 +545,7 @@ function buildPage(si, side, interactive) {
   capInp.placeholder = 'Caption…';
   capInp.value       = p.caption || '';
   if (interactive) {
+    capWrap.classList.add('edit-field');
     capInp.classList.add('cap');
     capInp.dataset.s = si;
     capInp.dataset.d = side;
@@ -533,6 +577,14 @@ function buildSlot(si, side, pi, photo, interactive) {
     const img = elt('img'); img.src = photo;
     if (!interactive) img.draggable = false;
     applyCropToImg(img, getCrop(si, side, pi));
+    if (!img.complete) {
+      slot.classList.add('loading');
+      img.style.opacity = '0';
+      img.style.transition = 'opacity 220ms ease';
+      const reveal = () => { img.style.opacity = '1'; slot.classList.remove('loading'); };
+      if (typeof img.decode === 'function') img.decode().then(reveal).catch(reveal);
+      else img.onload = img.onerror = reveal;
+    }
     const wrap = elt('div', 'photo-crop-wrap');
     wrap.appendChild(img);
     slot.appendChild(wrap);
@@ -682,6 +734,8 @@ function go(dir, onDone, nextOverride) {
       current  = next;
       scheduleSave();
       updateUI();
+      preloadSpread(current + 1);
+      preloadSpread(current - 1);
       // Fade oldSpread OUT over newSpread — newSpread was always opacity:1 so it's
       // fully painted (no font-lag). oldSpread acts as cover until it fades away.
       oldSpread.animate(
@@ -1349,6 +1403,7 @@ function setShareState(state, url) {
 }
 
 async function openShareModal() {
+  await scheduleSave.flush(); // ensure last edit is persisted before upload
   const btn = document.getElementById('shareCopyBtn');
   setShareState('working');
   document.getElementById('shareOverlay').classList.add('open');
@@ -1453,6 +1508,8 @@ if (shareId) {
 } else {
   persistLoad(); // normal editor startup
 }
+
+window.addEventListener('pagehide', () => scheduleSave.flush());
 
 function showShareNotFound() {
   const overlay = document.createElement('div');
